@@ -3,10 +3,10 @@
   hosts: minecraft
   become: yes
   vars:
-    s3_bucket: "ops3-minecraft-world-data-434247e1"
-    ecr_url: "654654138118.dkr.ecr.us-east-1.amazonaws.com/ops3-minecraft-repo"
+    s3_bucket: ""
+    ecr_url: ""
     region: "us-east-1"
-    image_tag: "latest" 
+    image_tag: "latest"
   tasks:
     - name: Install system dependencies (Docker)
       yum:

@@ -97,7 +97,6 @@ resource "aws_security_group" "minecraft_sg" {
 # 3. EC2 INSTANCE
 
 resource "aws_instance" "minecraft_server" {
-  # References the dynamic AMI data block at the top
   ami                    = data.aws_ami.amazon_linux_2023.id  
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.public_subnet.id
