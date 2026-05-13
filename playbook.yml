@@ -46,6 +46,7 @@
             -p 25565:25565 \
             -v /data:/data \
             -e EULA=TRUE \
+            -e MOTD="Shankar Server" \
             {{ ecr_url }}:{{ image_tag }}
         fi
       args:
