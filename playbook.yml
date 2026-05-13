@@ -1,0 +1,61 @@
+---
+- name: Configure Minecraft Server
+  hosts: minecraft
+  become: yes
+  vars:
+    s3_bucket: "ops3-minecraft-world-data-434247e1"
+    ecr_url: "654654138118.dkr.ecr.us-east-1.amazonaws.com/ops3-minecraft-repo"
+    region: "us-east-1"
+    image_tag: "latest" 
+  tasks:
+    - name: Install dependencies (Docker, AWS CLI, pip)
+      yum:
+        name:
+          - docker
+          - awscli
+          - python3-pip
+        state: present
+
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Install Python docker module (required for Ansible docker modules)
+      pip:
+        name: docker
+        state: present
+
+    - name: Authenticate Docker to Amazon ECR
+      shell: |
+        aws ecr get-login-password --region {{ region }} | docker login --username AWS --password-stdin {{ ecr_url }}
+      changed_when: false
+
+    - name: Ensure /data directory exists for world state
+      file:
+        path: /data
+        state: directory
+        mode: '0777'
+
+    - name: Restore world data from S3 (Does not fail if bucket is empty)
+      command: aws s3 sync s3://{{ s3_bucket }}/ /data/
+      changed_when: false
+
+    - name: Pull Minecraft image from ECR
+      docker_image:
+        name: "{{ ecr_url }}:{{ image_tag }}"
+        source: pull
+
+    - name: Run Minecraft Container
+      docker_container:
+        name: minecraft-server
+        image: "{{ ecr_url }}:{{ image_tag }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "25565:25565"
+        volumes:
+          - /data:/data
+        env:
+          EULA: "TRUE"

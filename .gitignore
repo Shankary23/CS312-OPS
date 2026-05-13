@@ -1,0 +1,18 @@
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# SSH Keys (CRITICAL)
+*.pem
+labsuser.pem
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Ignore any .tfvars files
+*.tfvars
+*.tfvars.json
