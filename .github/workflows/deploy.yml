@@ -1,0 +1,64 @@
+name: Deploy Minecraft Image to ECR
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-push:
+    name: Build, Test, and Push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Pull Base Minecraft Image
+        run: docker pull itzg/minecraft-server:latest
+
+      - name: Smoke Test Minecraft Image
+        run: |
+          echo "Starting Minecraft container for smoke test..."
+          docker run -d --name mc-smoke -e EULA=TRUE -p 25565:25565 itzg/minecraft-server:latest
+          
+          echo "Waiting for Minecraft server to initialize..."
+          SUCCESS=0
+          for i in $(seq 1 15); do
+            sleep 10
+            if docker logs mc-smoke 2>&1 | grep -q 'Done'; then
+              echo "Minecraft server started successfully!"
+              SUCCESS=1
+              break
+            fi
+            echo "Still waiting... ($i/15)"
+          done
+          
+          docker stop mc-smoke
+          docker rm mc-smoke
+          
+          if [ $SUCCESS -eq 0 ]; then
+            echo "Smoke test failed: Server did not output 'Done' in time."
+            exit 1
+          fi
+
+      - name: Tag and Push Image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ops3-minecraft-repo
+          IMAGE_TAG: latest
+        run: |
+          docker tag itzg/minecraft-server:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
