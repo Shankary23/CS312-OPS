@@ -8,12 +8,9 @@
     region: "us-east-1"
     image_tag: "latest" 
   tasks:
-    - name: Install dependencies (Docker, AWS CLI, pip)
+    - name: Install system dependencies (Docker)
       yum:
-        name:
-          - docker
-          - awscli
-          - python3-pip
+        name: docker
         state: present
 
     - name: Start and enable Docker service
@@ -21,11 +18,6 @@
         name: docker
         state: started
         enabled: yes
-
-    - name: Install Python docker module (required for Ansible docker modules)
-      pip:
-        name: docker
-        state: present
 
     - name: Authenticate Docker to Amazon ECR
       shell: |
@@ -43,19 +35,18 @@
       changed_when: false
 
     - name: Pull Minecraft image from ECR
-      docker_image:
-        name: "{{ ecr_url }}:{{ image_tag }}"
-        source: pull
+      command: docker pull {{ ecr_url }}:{{ image_tag }}
 
     - name: Run Minecraft Container
-      docker_container:
-        name: minecraft-server
-        image: "{{ ecr_url }}:{{ image_tag }}"
-        state: started
-        restart_policy: always
-        ports:
-          - "25565:25565"
-        volumes:
-          - /data:/data
-        env:
-          EULA: "TRUE"
+      shell: |
+        if ! docker ps -a --format '{{"{{"}}.Names{{"}}"}}' | grep -Eq "^minecraft-server\$"; then
+          docker run -d \
+            --name minecraft-server \
+            --restart always \
+            -p 25565:25565 \
+            -v /data:/data \
+            -e EULA=TRUE \
+            {{ ecr_url }}:{{ image_tag }}
+        fi
+      args:
+        executable: /bin/bash
