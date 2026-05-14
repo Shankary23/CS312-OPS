@@ -120,7 +120,7 @@ resource "aws_instance" "minecraft_server" {
 resource "aws_ecr_repository" "minecraft_repo" {
   name                 = "ops3-minecraft-repo"
   image_tag_mutability = "MUTABLE"
-  force_delete         = true
+  # force_delete = true
 }
 resource "random_id" "bucket_suffix" {
   byte_length = 4
@@ -128,5 +128,6 @@ resource "random_id" "bucket_suffix" {
 
 resource "aws_s3_bucket" "minecraft_world_data" {
   bucket        = "ops3-minecraft-world-data-${random_id.bucket_suffix.hex}"
-  force_destroy = true
+  # force_destroy = true
+  
 }

@@ -14,5 +14,5 @@ variable "aws_region" {
 variable "instance_type" {
   description = "The EC2 instance type."
   type        = string
-  default     = "t3.small" # t3.small or t3.medium is usually good for Minecraft
+  default     = "t3.small" 
 }
