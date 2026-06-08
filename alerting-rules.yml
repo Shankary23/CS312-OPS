@@ -1,0 +1,48 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ops5-alerts
+  labels:
+    release: prometheus 
+spec:
+  groups:
+    - name: minecraft.rules
+      rules:
+        - alert: MinecraftPodNotReady
+          expr: kube_pod_status_ready{namespace="default", pod=~"minecraft-deployment-.*", condition="true"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Minecraft Pod is not ready"
+            runbook: |
+              1. Run: kubectl describe pod {{ $labels.pod }} -n default
+              2. Check Events section for ErrImagePull or ImagePullBackOff
+              3. Check logs: kubectl logs {{ $labels.pod }} --previous
+              4. If bad image deploy, rollback: kubectl rollout undo deployment/minecraft-deployment
+
+        - alert: MinecraftServiceDown
+          expr: mc_server_online == 0 or absent(mc_server_online)
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Minecraft Service is unreachable"
+            runbook: |
+              1. Verify if the exporter pod is running: kubectl get pods -l app=minecraft-exporter
+              2. Check exporter logs: kubectl logs deployment/minecraft-exporter
+              3. Check if the main Minecraft pod is running and passing probes.
+              4. Confirm player impact: Complete loss of availability.
+
+        - alert: HostMemorySaturation
+          expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Host memory usage > 85%"
+            runbook: |
+              1. Run: kubectl top pods --all-namespaces --sort-by=memory
+              2. Identify the Pod consuming the most memory.
+              3. Check resource limits on the offending pod.
+              4. High risk of OOM kills on the t3.medium node.
